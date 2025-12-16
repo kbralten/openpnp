@@ -62,7 +62,8 @@ public class FootprintReticle implements Reticle {
         AffineTransform tx = new AffineTransform();
 
         tx.translate(viewPortCenterX, viewPortCenterY);
-        // Left-hand coordinate system rotates positive clockwise, so we invert the value.
+        // Left-hand coordinate system rotates positive clockwise, so we invert the
+        // value.
         tx.rotate(Math.toRadians(-rotation));
 
         // First we scale by units to convert the units and then we divide
@@ -73,5 +74,18 @@ public class FootprintReticle implements Reticle {
         // Transform the Shape and draw it out.
         shape = tx.createTransformedShape(shape);
         g2d.draw(shape);
+
+        // Draw Body Outline
+        if (footprint.getBodyWidth() > 0 && footprint.getBodyHeight() > 0) {
+            Shape bodyShape = footprint.getBodyShape();
+            if (bodyShape != null) {
+                bodyShape = tx.createTransformedShape(bodyShape);
+                // Draw lighter yellow
+                g2d.setColor(new Color(230, 230, 230));
+                g2d.draw(bodyShape);
+                // Restore color
+                g2d.setColor(color);
+            }
+        }
     }
 }
