@@ -50,23 +50,26 @@ class KicadPosImporterDialog extends JDialog {
     private JCheckBox chckbxCreateMissingParts;
     private JCheckBox chckbxUseValueOnlyAsPartId;
     private JCheckBox chckbxAssignParts;
+
     public KicadPosImporterDialog(KicadPosImporter kicadPosImporter, Frame parent) {
         super(parent, KicadPosImporter.DESCRIPTION, true);
         importer = kicadPosImporter;
         getContentPane().setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
 
         JPanel panel = new JPanel();
-        panel.setBorder(new TitledBorder(null, Translations.getString("KicadPosImporterDialog.FilesPanel.Border.title"), TitledBorder.LEADING, TitledBorder.TOP, //$NON-NLS-1$
+        panel.setBorder(new TitledBorder(null, Translations.getString("KicadPosImporterDialog.FilesPanel.Border.title"), //$NON-NLS-1$
+                TitledBorder.LEADING, TitledBorder.TOP,
                 null, null));
         getContentPane().add(panel);
         panel.setLayout(new FormLayout(
-                new ColumnSpec[] {FormSpecs.RELATED_GAP_COLSPEC, FormSpecs.DEFAULT_COLSPEC,
+                new ColumnSpec[] { FormSpecs.RELATED_GAP_COLSPEC, FormSpecs.DEFAULT_COLSPEC,
                         FormSpecs.RELATED_GAP_COLSPEC, ColumnSpec.decode("default:grow"), //$NON-NLS-1$
-                        FormSpecs.RELATED_GAP_COLSPEC, FormSpecs.DEFAULT_COLSPEC,},
-                new RowSpec[] {FormSpecs.RELATED_GAP_ROWSPEC, FormSpecs.DEFAULT_ROWSPEC,
-                        FormSpecs.RELATED_GAP_ROWSPEC, FormSpecs.DEFAULT_ROWSPEC,}));
+                        FormSpecs.RELATED_GAP_COLSPEC, FormSpecs.DEFAULT_COLSPEC, },
+                new RowSpec[] { FormSpecs.RELATED_GAP_ROWSPEC, FormSpecs.DEFAULT_ROWSPEC,
+                        FormSpecs.RELATED_GAP_ROWSPEC, FormSpecs.DEFAULT_ROWSPEC, }));
 
-        JLabel lblTopFilemnt = new JLabel(Translations.getString("KicadPosImporterDialog.FilesPanel.topFilemntLabel.text")); //$NON-NLS-1$
+        JLabel lblTopFilemnt = new JLabel(
+                Translations.getString("KicadPosImporterDialog.FilesPanel.topFilemntLabel.text")); //$NON-NLS-1$
         panel.add(lblTopFilemnt, "2, 2, right, default"); //$NON-NLS-1$
 
         textFieldTopFile = new JTextField();
@@ -77,44 +80,51 @@ class KicadPosImporterDialog extends JDialog {
         btnBrowse.setAction(browseTopFileAction);
         panel.add(btnBrowse, "6, 2"); //$NON-NLS-1$
 
-        JLabel lblBottomFilemnb = new JLabel(Translations.getString("KicadPosImporterDialog.FilesPanel.bottomFilemnbLabel.text")); //$NON-NLS-1$
+        JLabel lblBottomFilemnb = new JLabel(
+                Translations.getString("KicadPosImporterDialog.FilesPanel.bottomFilemnbLabel.text")); //$NON-NLS-1$
         panel.add(lblBottomFilemnb, "2, 4, right, default"); //$NON-NLS-1$
 
         textFieldBottomFile = new JTextField();
         panel.add(textFieldBottomFile, "4, 4, fill, default"); //$NON-NLS-1$
         textFieldBottomFile.setColumns(10);
 
-        JButton btnBrowse_1 = new JButton(Translations.getString("KicadPosImporterDialog.FilesPanel.browseButton.text")); //$NON-NLS-1$
+        JButton btnBrowse_1 = new JButton(
+                Translations.getString("KicadPosImporterDialog.FilesPanel.browseButton.text")); //$NON-NLS-1$
         btnBrowse_1.setAction(browseBottomFileAction);
         panel.add(btnBrowse_1, "6, 4"); //$NON-NLS-1$
 
         JPanel panel_1 = new JPanel();
-        panel_1.setBorder(new TitledBorder(null, Translations.getString("KicadPosImporterDialog.OptionsPanel.Border.title"), TitledBorder.LEADING, //$NON-NLS-1$
+        panel_1.setBorder(new TitledBorder(null,
+                Translations.getString("KicadPosImporterDialog.OptionsPanel.Border.title"), TitledBorder.LEADING, //$NON-NLS-1$
                 TitledBorder.TOP, null, null));
         getContentPane().add(panel_1);
         panel_1.setLayout(new FormLayout(new ColumnSpec[] {
                 FormSpecs.RELATED_GAP_COLSPEC,
-                FormSpecs.DEFAULT_COLSPEC,},
+                FormSpecs.DEFAULT_COLSPEC, },
                 new RowSpec[] {
                         FormSpecs.RELATED_GAP_ROWSPEC,
                         FormSpecs.DEFAULT_ROWSPEC,
                         FormSpecs.RELATED_GAP_ROWSPEC,
                         FormSpecs.DEFAULT_ROWSPEC,
                         FormSpecs.RELATED_GAP_ROWSPEC,
-                        FormSpecs.DEFAULT_ROWSPEC,}));
+                        FormSpecs.DEFAULT_ROWSPEC, }));
 
-        chckbxAssignParts = new JCheckBox(Translations.getString("KicadPosImporterDialog.OptionsPanel.assignPartsChkbox.text")); //$NON-NLS-1$
+        chckbxAssignParts = new JCheckBox(
+                Translations.getString("KicadPosImporterDialog.OptionsPanel.assignPartsChkbox.text")); //$NON-NLS-1$
         chckbxAssignParts.setSelected(true);
         panel_1.add(chckbxAssignParts, "2, 2"); //$NON-NLS-1$
 
-        chckbxCreateMissingParts = new JCheckBox(Translations.getString("KicadPosImporterDialog.OptionsPanel.createMissingPartsChkbox.text")); //$NON-NLS-1$
+        chckbxCreateMissingParts = new JCheckBox(
+                Translations.getString("KicadPosImporterDialog.OptionsPanel.createMissingPartsChkbox.text")); //$NON-NLS-1$
         chckbxCreateMissingParts.setSelected(false);
         chckbxCreateMissingParts.setToolTipText("PartId = 'Package'-'Value'"); //$NON-NLS-1$
         panel_1.add(chckbxCreateMissingParts, "2, 4"); //$NON-NLS-1$
 
-        chckbxUseValueOnlyAsPartId = new JCheckBox(Translations.getString("KicadPosImporterDialog.OptionsPanel.useValueOnlyAsPartIdChkbox.text")); //$NON-NLS-1$
+        chckbxUseValueOnlyAsPartId = new JCheckBox(
+                Translations.getString("KicadPosImporterDialog.OptionsPanel.useValueOnlyAsPartIdChkbox.text")); //$NON-NLS-1$
         chckbxUseValueOnlyAsPartId.setSelected(false);
-        chckbxUseValueOnlyAsPartId.setToolTipText(Translations.getString("KicadPosImporterDialog.OptionsPanel.useValueOnlyAsPartIdChkbox.toolTipText")); //$NON-NLS-1$
+        chckbxUseValueOnlyAsPartId.setToolTipText(
+                Translations.getString("KicadPosImporterDialog.OptionsPanel.useValueOnlyAsPartIdChkbox.toolTipText")); //$NON-NLS-1$
         panel_1.add(chckbxUseValueOnlyAsPartId, "2, 6"); //$NON-NLS-1$
 
         JSeparator separator = new JSeparator();
@@ -125,11 +135,13 @@ class KicadPosImporterDialog extends JDialog {
         flowLayout.setAlignment(FlowLayout.RIGHT);
         getContentPane().add(panel_2);
 
-        JButton btnCancel = new JButton(Translations.getString("KicadPosImporterDialog.ButtonsPanel.cancelButton.text")); //$NON-NLS-1$
+        JButton btnCancel = new JButton(
+                Translations.getString("KicadPosImporterDialog.ButtonsPanel.cancelButton.text")); //$NON-NLS-1$
         btnCancel.setAction(cancelAction);
         panel_2.add(btnCancel);
 
-        JButton btnImport = new JButton(Translations.getString("KicadPosImporterDialog.ButtonsPanel.importButton.text")); //$NON-NLS-1$
+        JButton btnImport = new JButton(
+                Translations.getString("KicadPosImporterDialog.ButtonsPanel.importButton.text")); //$NON-NLS-1$
         btnImport.setAction(importAction);
         panel_2.add(btnImport);
 
@@ -169,7 +181,8 @@ class KicadPosImporterDialog extends JDialog {
     private class SwingAction_1 extends AbstractAction {
         public SwingAction_1() {
             putValue(NAME, Translations.getString("KicadPosImporterDialog.Browse1Action.Name")); //$NON-NLS-1$
-            putValue(SHORT_DESCRIPTION, Translations.getString("KicadPosImporterDialog.Browse1Action.ShortDescription")); //$NON-NLS-1$
+            putValue(SHORT_DESCRIPTION,
+                    Translations.getString("KicadPosImporterDialog.Browse1Action.ShortDescription")); //$NON-NLS-1$
         }
 
         public void actionPerformed(ActionEvent e) {
@@ -201,21 +214,22 @@ class KicadPosImporterDialog extends JDialog {
             KicadPosImporterDialog.this.importer.board = new Board();
             List<Placement> placements = new ArrayList<>();
             try {
-                if (KicadPosImporterDialog.this.importer.topFile.exists()) {
+                if (KicadPosImporterDialog.this.importer.topFile.isFile()) {
                     placements.addAll(KicadPosImporter.parseFile(KicadPosImporterDialog.this.importer.topFile, Side.Top,
                             chckbxAssignParts.isSelected(),
-                            chckbxCreateMissingParts.isSelected(), 
+                            chckbxCreateMissingParts.isSelected(),
                             chckbxUseValueOnlyAsPartId.isSelected()));
                 }
-                if (KicadPosImporterDialog.this.importer.bottomFile.exists()) {
-                    placements.addAll(KicadPosImporter.parseFile(KicadPosImporterDialog.this.importer.bottomFile, Side.Bottom,
-                            chckbxAssignParts.isSelected(),
-                            chckbxCreateMissingParts.isSelected(), 
-                            chckbxUseValueOnlyAsPartId.isSelected()));
+                if (KicadPosImporterDialog.this.importer.bottomFile.isFile()) {
+                    placements.addAll(
+                            KicadPosImporter.parseFile(KicadPosImporterDialog.this.importer.bottomFile, Side.Bottom,
+                                    chckbxAssignParts.isSelected(),
+                                    chckbxCreateMissingParts.isSelected(),
+                                    chckbxUseValueOnlyAsPartId.isSelected()));
                 }
-            }
-            catch (Exception e1) {
-                MessageBoxes.errorBox(KicadPosImporterDialog.this, Translations.getString("KicadPosImporterDialog.ImportErrorMessage"), e1); //$NON-NLS-1$
+            } catch (Exception e1) {
+                MessageBoxes.errorBox(KicadPosImporterDialog.this,
+                        Translations.getString("KicadPosImporterDialog.ImportErrorMessage"), e1); //$NON-NLS-1$
                 return;
             }
             for (Placement placement : placements) {
