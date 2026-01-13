@@ -64,8 +64,10 @@ import org.openpnp.gui.support.TableUtils;
 import org.openpnp.gui.support.Icons;
 import org.openpnp.gui.support.LengthCellValue;
 import org.openpnp.gui.support.MessageBoxes;
+import org.openpnp.util.UiUtils;
 import org.openpnp.gui.tablemodel.PlacementsHolderTableModel;
 import org.openpnp.model.Board;
+import org.openpnp.model.BoardLocation;
 import org.openpnp.model.Configuration;
 import org.openpnp.model.Configuration.TablesLinked;
 import com.google.common.eventbus.Subscribe;
@@ -226,10 +228,16 @@ public class BoardsPanel extends JPanel {
                 JPopupMenu menu = new JPopupMenu();
                 menu.add(new JMenuItem(addNewBoardAction));
                 menu.add(new JMenuItem(addExistingBoardAction));
+                menu.addSeparator();
+                menu.add(new JMenuItem(validateZHeightAction));
                 menu.show(btnAddBoard, (int) btnAddBoard.getWidth(), (int) btnAddBoard.getHeight());
             }
         });
         toolBarBoards.add(btnAddBoard);
+        
+        JButton btnValidateZ = new JButton(validateZHeightAction);
+        btnValidateZ.setHideActionText(true);
+        toolBarBoards.add(btnValidateZ);
         
         JButton btnRemoveBoard = new JButton(removeBoardAction);
         btnRemoveBoard.setHideActionText(true);
@@ -492,6 +500,46 @@ public class BoardsPanel extends JPanel {
                         Translations.getString("BoardsPanel.Action.CopyBoard.ErrorMessage"), //$NON-NLS-1$
                         e.getMessage());
             }
+        }
+    };
+
+    public final Action validateZHeightAction = new AbstractAction() {
+        {
+            putValue(SMALL_ICON, Icons.fiducialCheck);
+            putValue(NAME, "Validate Z Height");
+            putValue(SHORT_DESCRIPTION, "Check if the board Z height matches the machine configuration.");
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent arg0) {
+            UiUtils.submitUiMachineTask(() -> {
+                Board board = getSelection();
+                if (board == null) {
+                    return;
+                }
+                
+                try {
+                    // We'll iterate the Job's BoardLocations and validate all that use this Board definition.
+                    boolean found = false;
+                    for (BoardLocation bl : frame.getJobTab().getJob().getBoardLocations()) {
+                        if (bl.getBoard() == board) {
+                            found = true;
+                            if (configuration.getMachine().getPnpJobProcessor() instanceof org.openpnp.machine.reference.ReferencePnpJobProcessor) {
+                                ((org.openpnp.machine.reference.ReferencePnpJobProcessor) configuration.getMachine().getPnpJobProcessor()).validateBoardLocationZ(bl);
+                            }
+                        }
+                    }
+                    if (!found) {
+                        MessageBoxes.errorBox(BoardsPanel.this, "Error", "This board is not currently used in the Job.");
+                    }
+                    else {
+                        MessageBoxes.infoBox("Success", "Z Height Validated successfully.");
+                    }
+                }
+                catch (Exception e) {
+                    MessageBoxes.errorBox(BoardsPanel.this, "Validation Failed", e);
+                }
+            });
         }
     };
 

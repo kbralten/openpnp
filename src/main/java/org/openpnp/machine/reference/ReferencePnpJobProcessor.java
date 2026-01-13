@@ -38,7 +38,6 @@ import org.openpnp.gui.MainFrame;
 import org.openpnp.gui.support.Wizard;
 import org.openpnp.machine.reference.vision.AbstractPartAlignment;
 import org.openpnp.machine.reference.wizards.ReferencePnpJobProcessorConfigurationWizard;
-import org.openpnp.machine.reference.ReferenceFeeder;
 import org.openpnp.model.BoardLocation;
 import org.openpnp.model.Configuration;
 import org.openpnp.model.Job;
@@ -50,9 +49,11 @@ import org.openpnp.model.PanelLocation;
 import org.openpnp.model.Part;
 import org.openpnp.model.Placement;
 import org.openpnp.model.PlacementsHolderLocation;
-import org.openpnp.spi.Feeder;
+import org.openpnp.spi.Actuator;
+import org.openpnp.spi.Camera;
 import org.openpnp.spi.Feeder;
 import org.openpnp.spi.FiducialLocator;
+import org.openpnp.spi.FocusProvider;
 import org.openpnp.spi.Head;
 import org.openpnp.spi.HeadMountable;
 import org.openpnp.spi.Locatable.LocationOption;
@@ -101,6 +102,17 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
             return Translations.getString("MachineSetup.JobProcessors.ReferencePnpJobProcessor.JobOrder." + this.name());
         }
     }
+    
+    public enum ValidationMethod {
+        CameraFocus,
+        ZProbeActuator;
+        
+        @Override
+        public String toString() {
+            // TODO: Add translation
+            return name();
+        }
+    }
 
     @Attribute(required = false)
     protected JobOrderHint jobOrder = JobOrderHint.NozzleTips;
@@ -147,6 +159,18 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
      */
     @Attribute(required = false)
     boolean preRotateAllNozzles = true;
+
+    @Attribute(required = false)
+    private boolean validateZHeights = false;
+    
+    @Attribute(required = false)
+    private ValidationMethod validationMethod = ValidationMethod.CameraFocus;
+    
+    @Attribute(required = false)
+    private String zProbeActuatorName;
+
+    @Element(required = false)
+    private Length zHeightTolerance = new Length(1.0, LengthUnit.Millimeters);
 
     @Element(required = false)
     public PnpJobPlanner planner = new SimplePnpJobPlanner();
@@ -242,6 +266,217 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
      * 
      * @throws Exception
      */
+    public boolean isValidateZHeights() {
+        return validateZHeights;
+    }
+
+    public void setValidateZHeights(boolean validateZHeights) {
+        this.validateZHeights = validateZHeights;
+    }
+
+    public Length getZHeightTolerance() {
+        return zHeightTolerance;
+    }
+
+    public void setZHeightTolerance(Length zHeightTolerance) {
+        this.zHeightTolerance = zHeightTolerance;
+    }
+    
+    public ValidationMethod getValidationMethod() {
+        return validationMethod;
+    }
+
+    public void setValidationMethod(ValidationMethod validationMethod) {
+        this.validationMethod = validationMethod;
+    }
+
+    public String getZProbeActuatorName() {
+        return zProbeActuatorName;
+    }
+
+    public void setZProbeActuatorName(String zProbeActuatorName) {
+        this.zProbeActuatorName = zProbeActuatorName;
+    }
+
+    public void validateBoardLocationZ(BoardLocation boardLocation) throws Exception {
+         if (!boardLocation.isEnabled()) {
+             return;
+         }
+         
+         // Setup camera and head if not already done (in case called from UI context)
+         if (machine == null) {
+             machine = Configuration.get().getMachine();
+         }
+         if (head == null) {
+             head = machine.getDefaultHead();
+         }
+         Camera camera = null;
+         FocusProvider focusProvider = null;
+         Actuator zProbeActuator = null;
+         
+         if (validationMethod == ValidationMethod.CameraFocus) {
+             camera = machine.getDefaultHead().getDefaultCamera();
+             focusProvider = camera.getFocusProvider();
+             if (focusProvider == null) {
+                 throw new Exception("No FocusProvider available for Z validation.");
+             }
+         }
+         else if (validationMethod == ValidationMethod.ZProbeActuator) {
+             if (zProbeActuatorName == null || zProbeActuatorName.isEmpty()) {
+                 throw new Exception("Z Probe Actuator not selected for validation.");
+             }
+             zProbeActuator = machine.getActuatorByName(zProbeActuatorName);
+             if (zProbeActuator == null) {
+                 zProbeActuator = machine.getDefaultHead().getActuatorByName(zProbeActuatorName);
+             }
+             if (zProbeActuator == null) {
+                 throw new Exception("Z Probe Actuator '" + zProbeActuatorName + "' not found.");
+             }
+             camera = machine.getDefaultHead().getDefaultCamera();
+         }
+         
+         // Determine target location: First Fiducial or Board Location
+         Location targetLocation = boardLocation.getLocation();
+         
+         if (boardLocation.getBoard() != null) {
+             for (Placement p : boardLocation.getBoard().getPlacements()) {
+                 if (p.getType() == Placement.Type.Fiducial) {
+                      targetLocation = Utils2D.calculateBoardPlacementLocation(boardLocation, p.getLocation());
+                      break; // Found first fiducial
+                 }
+             }
+         }
+         
+         double measuredZ;
+         
+         if (validationMethod == ValidationMethod.CameraFocus) {
+             head.moveToSafeZ();
+             Location measuredLoc = focusProvider.autoFocus(camera, (HeadMountable)camera, new Length(0, LengthUnit.Millimeters), targetLocation, targetLocation);
+             measuredZ = measuredLoc.getZ();
+         }
+         else {
+             // Z Probe
+             head.moveToSafeZ();
+             Location safeMoveLoc = new Location(targetLocation.getUnits(), targetLocation.getX(), targetLocation.getY(), head.getDefaultCamera().getLocation().getZ(), targetLocation.getRotation());
+             head.moveTo((HeadMountable)camera, safeMoveLoc, 1.0); 
+             
+             zProbeActuator.actuate(true);
+             measuredZ = camera.getLocation().getZ(); 
+             zProbeActuator.actuate(false);
+         }
+         
+         double diff = Math.abs(measuredZ - targetLocation.getZ());
+         if (diff > zHeightTolerance.getValue()) {
+              throw new JobProcessorException(boardLocation, 
+                      String.format("Board %s Z-height out of tolerance. Expected %.3f, Measured %.3f, Tolerance %.3f", 
+                              boardLocation.getBoard().getName(), targetLocation.getZ(), measuredZ, zHeightTolerance.getValue()));
+         }
+    }
+
+    public void validateFeederZ(Feeder feeder) throws Exception {
+         if (!feeder.isEnabled()) {
+             return;
+         }
+         
+         // Setup camera and head if not already done (in case called from UI context)
+         if (machine == null) {
+             machine = Configuration.get().getMachine();
+         }
+         if (head == null) {
+             head = machine.getDefaultHead();
+         }
+         Camera camera = null;
+         FocusProvider focusProvider = null;
+         Actuator zProbeActuator = null;
+         
+         if (validationMethod == ValidationMethod.CameraFocus) {
+             camera = machine.getDefaultHead().getDefaultCamera();
+             focusProvider = camera.getFocusProvider();
+             if (focusProvider == null) {
+                 throw new Exception("No FocusProvider available for Z validation.");
+             }
+         }
+         else if (validationMethod == ValidationMethod.ZProbeActuator) {
+             if (zProbeActuatorName == null || zProbeActuatorName.isEmpty()) {
+                 throw new Exception("Z Probe Actuator not selected for validation.");
+             }
+             zProbeActuator = machine.getActuatorByName(zProbeActuatorName);
+             if (zProbeActuator == null) {
+                 zProbeActuator = machine.getDefaultHead().getActuatorByName(zProbeActuatorName);
+             }
+             if (zProbeActuator == null) {
+                 throw new Exception("Z Probe Actuator '" + zProbeActuatorName + "' not found.");
+             }
+             camera = machine.getDefaultHead().getDefaultCamera();
+         }
+
+         Location pickLoc = feeder.getPickLocation();
+         if (pickLoc == null) {
+             return;
+         }
+         
+         double measuredZ;
+
+         if (validationMethod == ValidationMethod.CameraFocus) {
+             head.moveToSafeZ();
+             Location measuredPickLoc = focusProvider.autoFocus(camera, (HeadMountable)camera, new Length(0, LengthUnit.Millimeters), pickLoc, pickLoc);
+             measuredZ = measuredPickLoc.getZ();
+         }
+         else {
+             head.moveToSafeZ();
+             Location safeMoveLoc = new Location(pickLoc.getUnits(), pickLoc.getX(), pickLoc.getY(), head.getDefaultCamera().getLocation().getZ(), pickLoc.getRotation());
+             head.moveTo((HeadMountable)camera, safeMoveLoc, 1.0);
+             
+             zProbeActuator.actuate(true);
+             measuredZ = camera.getLocation().getZ();
+             zProbeActuator.actuate(false);
+         }
+         
+         double diff = Math.abs(measuredZ - pickLoc.getZ());
+         if (diff > zHeightTolerance.getValue()) {
+             throw new JobProcessorException(feeder, 
+                     String.format("Feeder %s Z-height out of tolerance. Expected %.3f, Measured %.3f, Tolerance %.3f", 
+                             feeder.getName(), pickLoc.getZ(), measuredZ, zHeightTolerance.getValue()));
+         }
+    }
+
+    private void validateZHeights() throws Exception {
+        if (!validateZHeights) {
+            return;
+        }
+        fireTextStatus("Validating Z heights.");
+        
+        // Prepare shared resources to avoid looking them up repeatedly?
+        // Actually, for simplicity and robustness, letting individual methods verify state is fine,
+        // but performance wise we might want to lookup once. 
+        // However, since we refactored to single calls, we can just iterate and call them.
+        // But wait, the single calls do their own setup (machine, head, etc).
+        // That is fine for UI calls, but inside the loop it might be slightly inefficient. 
+        // Given this is a pre-flight check, milliseconds matter less than correctness.
+        // Let's keep it simple.
+        
+        // Validate Board Locations
+        for (BoardLocation boardLocation : job.getBoardLocations()) {
+            validateBoardLocationZ(boardLocation);
+        }
+        
+        // Validate Feeders
+        for (Feeder feeder : machine.getFeeders()) {
+             // Check if feeder is actually used in the job
+             boolean isUsed = false;
+             for (JobPlacement jp : jobPlacements) {
+                 if (jp.getPlacement().getPart().getId().equals(feeder.getPart().getId())) {
+                     isUsed = true;
+                     break;
+                 }
+             }
+             if (!isUsed) {
+                 continue;
+             }
+             validateFeederZ(feeder);
+        }
+    }
+
     protected class PreFlight implements Step {
         public Step step() throws JobProcessorException {
             startTime = System.currentTimeMillis();
@@ -264,6 +499,13 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
             previousPlacePlanStartLocation = previousPickPlanStartLocation = new Location(LengthUnit.Millimeters);
             
             checkSetupErrors();
+
+            try {
+                validateZHeights();
+            }
+            catch (Exception e) {
+                throw new JobProcessorException(null, e);
+            }
             
             prepMachine();
             

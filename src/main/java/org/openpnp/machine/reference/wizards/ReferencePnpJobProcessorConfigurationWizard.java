@@ -31,8 +31,12 @@ import org.openpnp.Translations;
 import org.openpnp.gui.components.ComponentDecorators;
 import org.openpnp.gui.support.AbstractConfigurationWizard;
 import org.openpnp.gui.support.IntegerConverter;
+import org.openpnp.gui.support.LengthConverter;
 import org.openpnp.machine.reference.ReferencePnpJobProcessor;
 import org.openpnp.machine.reference.ReferencePnpJobProcessor.JobOrderHint;
+import org.openpnp.machine.reference.ReferencePnpJobProcessor.ValidationMethod;
+import org.openpnp.model.Configuration;
+import org.openpnp.spi.Actuator;
 import org.openpnp.spi.PnpJobPlanner.Strategy;
 
 import com.jgoodies.forms.layout.ColumnSpec;
@@ -52,6 +56,13 @@ public class ReferencePnpJobProcessorConfigurationWizard extends AbstractConfigu
     private JCheckBox preRotateAllNozzles;
     private JTextField feederFaultLimitTextField;
     private JTextField feederFaultWindowSizeTextField;
+    
+    private JCheckBox validateZHeights;
+    private JTextField zHeightTolerance;
+    
+    private JComboBox<ValidationMethod> comboBoxValidationMethod;
+    private JComboBox<String> comboBoxZProbeActuator;
+    private JLabel lblZProbeActuator;
 
     public ReferencePnpJobProcessorConfigurationWizard(ReferencePnpJobProcessor jobProcessor) {
         this.jobProcessor = jobProcessor;
@@ -61,6 +72,7 @@ public class ReferencePnpJobProcessorConfigurationWizard extends AbstractConfigu
         panelGeneral.setBorder(new TitledBorder(null, Translations.getString("MachineSetup.JobProcessors.ReferencePnpJobProcessor.GeneralPanel.Border.title"), TitledBorder.LEADING, //$NON-NLS-1$
                 TitledBorder.TOP, null, null));
         contentPanel.add(panelGeneral);
+        
         panelGeneral.setLayout(new FormLayout(new ColumnSpec[] {
                 FormSpecs.RELATED_GAP_COLSPEC,
                 FormSpecs.DEFAULT_COLSPEC,
@@ -155,11 +167,77 @@ public class ReferencePnpJobProcessorConfigurationWizard extends AbstractConfigu
         feederFaultWindowSizeTextField = new JTextField();
         panelGeneral.add(feederFaultWindowSizeTextField, "4, 18");
         feederFaultWindowSizeTextField.setColumns(10);
+        
+
+        // Safety Panel
+        JPanel panelSafety = new JPanel();
+        panelSafety.setBorder(new TitledBorder(null, "Safety Settings", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+        contentPanel.add(panelSafety);
+        
+        panelSafety.setLayout(new FormLayout(new ColumnSpec[] {
+                FormSpecs.RELATED_GAP_COLSPEC,
+                FormSpecs.DEFAULT_COLSPEC,
+                FormSpecs.RELATED_GAP_COLSPEC,
+                FormSpecs.DEFAULT_COLSPEC,},
+                new RowSpec[] {
+                        FormSpecs.RELATED_GAP_ROWSPEC,
+                        FormSpecs.DEFAULT_ROWSPEC,
+                        FormSpecs.RELATED_GAP_ROWSPEC,
+                        FormSpecs.DEFAULT_ROWSPEC,
+                        FormSpecs.RELATED_GAP_ROWSPEC,
+                        FormSpecs.DEFAULT_ROWSPEC,
+                        FormSpecs.RELATED_GAP_ROWSPEC,
+                        FormSpecs.DEFAULT_ROWSPEC,}));
+        
+        JLabel lblValidateZ = new JLabel("Validate sane Z-heights");
+        lblValidateZ.setToolTipText("If enabled, the Z-height of boards and feeders will be validated against the detected height before starting a job.");
+        panelSafety.add(lblValidateZ, "2, 2, right, default");
+        
+        validateZHeights = new JCheckBox();
+        panelSafety.add(validateZHeights, "4, 2");
+        
+        JLabel lblValidationMethod = new JLabel("Method");
+        panelSafety.add(lblValidationMethod, "2, 4, right, default");
+        
+        comboBoxValidationMethod = new JComboBox<ValidationMethod>(ValidationMethod.values());
+        panelSafety.add(comboBoxValidationMethod, "4, 4");
+        
+        lblZProbeActuator = new JLabel("Z Probe");
+        lblZProbeActuator.setToolTipText("The actuator to use for Z probing.");
+        panelSafety.add(lblZProbeActuator, "2, 6, right, default");
+        
+        comboBoxZProbeActuator = new JComboBox<>();
+        panelSafety.add(comboBoxZProbeActuator, "4, 6");
+        
+        // Populate Actuators
+        comboBoxZProbeActuator.addItem(""); // Allow empty
+        for (Actuator actuator : Configuration.get().getMachine().getActuators()) {
+            comboBoxZProbeActuator.addItem(actuator.getName());
+        }
+
+        JLabel lblZTolerance = new JLabel("Tolerance");
+        lblZTolerance.setToolTipText("The maximum allowed difference between configured and detected Z-height.");
+        panelSafety.add(lblZTolerance, "2, 8, right, default");
+        
+        zHeightTolerance = new JTextField();
+        panelSafety.add(zHeightTolerance, "4, 8");
+        zHeightTolerance.setColumns(10);
+        
+        // Update visibility
+        comboBoxValidationMethod.addActionListener(e -> updateVisibility());
+        updateVisibility();
+    }
+    
+    private void updateVisibility() {
+        boolean isZProbe = (comboBoxValidationMethod.getSelectedItem() == ValidationMethod.ZProbeActuator);
+        lblZProbeActuator.setVisible(isZProbe);
+        comboBoxZProbeActuator.setVisible(isZProbe);
     }
 
     @Override
     public void createBindings() {
         IntegerConverter intConverter = new IntegerConverter();
+        LengthConverter lengthConverter = new LengthConverter();
 
         addWrappedBinding(jobProcessor, "jobOrder", comboBoxJobOrder, "selectedItem");
         addWrappedBinding(jobProcessor.planner, "strategy", comboBoxPlannerStrategy, "selectedItem");
@@ -170,7 +248,13 @@ public class ReferencePnpJobProcessorConfigurationWizard extends AbstractConfigu
         addWrappedBinding(jobProcessor, "preRotateAllNozzles", preRotateAllNozzles, "selected");
         addWrappedBinding(jobProcessor, "feederFaultLimit", feederFaultLimitTextField, "text", intConverter);
         addWrappedBinding(jobProcessor, "feederFaultWindowSize", feederFaultWindowSizeTextField, "text", intConverter);
+        
+        addWrappedBinding(jobProcessor, "validateZHeights", validateZHeights, "selected");
+        addWrappedBinding(jobProcessor, "validationMethod", comboBoxValidationMethod, "selectedItem");
+        addWrappedBinding(jobProcessor, "ZProbeActuatorName", comboBoxZProbeActuator, "selectedItem");
+        addWrappedBinding(jobProcessor, "ZHeightTolerance", zHeightTolerance, "text", lengthConverter);
 
         ComponentDecorators.decorateWithAutoSelect(maxVisionRetriesTextField);
+        ComponentDecorators.decorateWithAutoSelectAndLengthConversion(zHeightTolerance);
     }
 }
