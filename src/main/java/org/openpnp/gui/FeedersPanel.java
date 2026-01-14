@@ -40,7 +40,7 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
-import javax.swing.JMenuItem;
+
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -348,8 +348,7 @@ public class FeedersPanel extends JPanel implements WizardContainer {
             setFeedOptionsMenu.add(new SetFeedOptionsAction(opt));
         }
         popupMenu.add(setFeedOptionsMenu);
-        popupMenu.addSeparator();
-        popupMenu.add(new JMenuItem(validateZHeightAction));
+
 
         table.setComponentPopupMenu(popupMenu);
     }
@@ -627,33 +626,7 @@ public class FeedersPanel extends JPanel implements WizardContainer {
         }
     };
 
-    public Action validateZHeightAction = new AbstractAction() {
-        {
-            putValue(SMALL_ICON, Icons.fiducialCheck);
-            putValue(NAME, "Validate Z Height");
-            putValue(SHORT_DESCRIPTION, "Check if the feeder Z height matches the machine configuration.");
-        }
 
-        @Override
-        public void actionPerformed(ActionEvent arg0) {
-            UiUtils.submitUiMachineTask(() -> {
-                Feeder feeder = getSelection();
-                if (feeder == null) {
-                    return;
-                }
-                
-                try {
-                    if (configuration.getMachine().getPnpJobProcessor() instanceof org.openpnp.machine.reference.ReferencePnpJobProcessor) {
-                        ((org.openpnp.machine.reference.ReferencePnpJobProcessor) configuration.getMachine().getPnpJobProcessor()).validateFeederZ(feeder);
-                        MessageBoxes.infoBox("Success", "Z Height Validated successfully.");
-                    }
-                }
-                catch (Exception e) {
-                    MessageBoxes.errorBox(FeedersPanel.this, "Validation Failed", e);
-                }
-            });
-        }
-    };
 
     public Action pickFeederAction = new AbstractAction() {
         {
