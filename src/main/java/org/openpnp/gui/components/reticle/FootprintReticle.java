@@ -26,6 +26,8 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 
+import org.openpnp.gui.support.FlexibleColor;
+
 import org.openpnp.model.Footprint;
 import org.openpnp.model.Length;
 import org.openpnp.model.LengthUnit;
@@ -81,7 +83,7 @@ public class FootprintReticle implements Reticle {
             if (bodyShape != null) {
                 bodyShape = tx.createTransformedShape(bodyShape);
                 // Draw lighter yellow
-                g2d.setColor(new Color(230, 230, 230));
+                g2d.setColor(new FlexibleColor(color.getRGB()).brighter(80));
                 g2d.draw(bodyShape);
                 // Restore color
                 g2d.setColor(color);
