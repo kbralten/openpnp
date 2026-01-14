@@ -367,9 +367,22 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
          
          double diff = Math.abs(measuredZ - targetLocation.getZ());
          if (diff > zHeightTolerance.getValue()) {
-              throw new JobProcessorException(boardLocation, 
-                      String.format("Board %s Z-height out of tolerance. Expected %.3f, Measured %.3f, Tolerance %.3f", 
-                              boardLocation.getBoard().getName(), targetLocation.getZ(), measuredZ, zHeightTolerance.getValue()));
+             String errorMessage = String.format("Board %s Z-height out of tolerance. Expected %.3f, Measured %.3f, Tolerance %.3f", 
+                     boardLocation.getBoard().getName(), targetLocation.getZ(), measuredZ, zHeightTolerance.getValue());
+             
+             // Ask user if they want to continue
+             int result = javax.swing.JOptionPane.showConfirmDialog(
+                     org.openpnp.gui.MainFrame.get(), 
+                     errorMessage + "\n\nDo you want to continue?", 
+                     "Job Error", 
+                     javax.swing.JOptionPane.YES_NO_OPTION,
+                     javax.swing.JOptionPane.ERROR_MESSAGE);
+             
+             if (result != javax.swing.JOptionPane.YES_OPTION) {
+                 throw new JobProcessorException(boardLocation, errorMessage);
+             }
+             // User chose to continue
+             org.pmw.tinylog.Logger.warn("User accepted Z-height error: " + errorMessage);
          }
     }
 
@@ -434,9 +447,21 @@ public class ReferencePnpJobProcessor extends AbstractPnpJobProcessor {
          
          double diff = Math.abs(measuredZ - pickLoc.getZ());
          if (diff > zHeightTolerance.getValue()) {
-             throw new JobProcessorException(feeder, 
-                     String.format("Feeder %s Z-height out of tolerance. Expected %.3f, Measured %.3f, Tolerance %.3f", 
-                             feeder.getName(), pickLoc.getZ(), measuredZ, zHeightTolerance.getValue()));
+             String errorMessage = String.format("Feeder %s Z-height out of tolerance. Expected %.3f, Measured %.3f, Tolerance %.3f", 
+                     feeder.getName(), pickLoc.getZ(), measuredZ, zHeightTolerance.getValue());
+             // Ask user if they want to continue
+             int result = javax.swing.JOptionPane.showConfirmDialog(
+                     org.openpnp.gui.MainFrame.get(), 
+                     errorMessage + "\n\nDo you want to continue?", 
+                     "Job Error", 
+                     javax.swing.JOptionPane.YES_NO_OPTION,
+                     javax.swing.JOptionPane.ERROR_MESSAGE);
+                     
+             if (result != javax.swing.JOptionPane.YES_OPTION) {
+                 throw new JobProcessorException(feeder, errorMessage);
+             }
+             // User chose to continue
+             org.pmw.tinylog.Logger.warn("User accepted Z-height error: " + errorMessage);
          }
     }
 
