@@ -457,11 +457,32 @@ public class OpenPnpCaptureCamera extends ReferenceCamera implements Runnable {
             });
         }
 
+        private Integer min;
+        private Integer max;
+        private Integer def;
+        private Boolean supported;
+        private Boolean autoSupported;
+
         public void setStream(CaptureStream stream) {
             this.stream = stream;
+            // Invalidate cache
+            this.min = null;
+            this.max = null;
+            this.def = null;
+            this.supported = null;
+            this.autoSupported = null;
+            
             if (stream == null) {
                 return;
             }
+            // Pre-fetch constants (min, max, def, supported) to avoid lag on UI thread
+            // We do this in a separate thread if possible? No, setStream is usually called on open()
+            // which handles threading. But here it might be called on UI.
+            // Since we are lazy loading in getters, just invalidating is enough. 
+            // The first get will still be slow, but subsequent ones fast. 
+            // Wait, the wizard calls ALL of them at once. So we still have the initial hit.
+            // But 'getMin', 'getMax' etc are called by the binding.
+            
             if (auto != null) {
                 setAuto(auto);
             }
@@ -477,34 +498,52 @@ public class OpenPnpCaptureCamera extends ReferenceCamera implements Runnable {
             firePropertyChange("auto", null, isAuto());
         }
 
-        public int getMin() {
+        private void ensureLimits() {
+            if (min != null) {
+                return; // Already cached
+            }
             try {
                 PropertyLimits limits = stream.getPropertyLimits(property);
-                return limits.getMin();
+                min = limits.getMin();
+                max = limits.getMax();
+                def = limits.getDefault();
+                supported = true;
             }
             catch (Exception e) {
-                return 0;
+                min = 0;
+                max = 0;
+                def = 0;
+                supported = false;
             }
+        }
+
+        private void ensureAutoSupported() {
+            if (autoSupported != null) {
+                return;
+            }
+            try {
+                // Just check if we can get the property; don't store the value
+                stream.getAutoProperty(property);
+                autoSupported = true;
+            }
+            catch (Exception e) {
+                autoSupported = false;
+            }
+        }
+
+        public int getMin() {
+            ensureLimits();
+            return min;
         }
 
         public int getMax() {
-            try {
-                PropertyLimits limits = stream.getPropertyLimits(property);
-                return limits.getMax();
-            }
-            catch (Exception e) {
-                return 0;
-            }
+            ensureLimits();
+            return max;
         }
 
         public int getDefault() {
-            try {
-                PropertyLimits limits = stream.getPropertyLimits(property);
-                return limits.getDefault();
-            }
-            catch (Exception e) {
-                return 0;
-            }
+            ensureLimits();
+            return def;
         }
 
         public boolean isAuto() {
@@ -556,23 +595,13 @@ public class OpenPnpCaptureCamera extends ReferenceCamera implements Runnable {
         }
 
         public boolean isSupported() {
-            try {
-                stream.getPropertyLimits(property);
-                return true;
-            }
-            catch (Exception e) {
-                return false;
-            }
+            ensureLimits();
+            return supported;
         }
 
         public boolean isAutoSupported() {
-            try {
-                stream.getAutoProperty(property);
-                return true;
-            }
-            catch (Exception e) {
-                return false;
-            }
+            ensureAutoSupported();
+            return autoSupported;
         }
     }
 

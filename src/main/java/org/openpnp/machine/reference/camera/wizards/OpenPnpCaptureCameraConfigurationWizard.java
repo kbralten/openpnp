@@ -237,10 +237,12 @@ public class OpenPnpCaptureCameraConfigurationWizard extends AbstractConfigurati
                         
                                 deviceCb.addActionListener(l -> {
                                     formatCb.removeAllItems();
-                                    CaptureDevice dev = (CaptureDevice) deviceCb.getSelectedItem();
-                                    if (dev == null) {
+                                    Object selected = deviceCb.getSelectedItem();
+                                    if (!(selected instanceof CaptureDevice)) {
                                         return;
                                     }
+                                    CaptureDevice dev = (CaptureDevice) selected;
+
                                     for (CaptureFormat format : dev.getFormats()) {
                                         // Note: due to an instability of the CaptureFormat.equals() 
                                         // method, we use the String representation as selection.
@@ -660,9 +662,40 @@ public class OpenPnpCaptureCameraConfigurationWizard extends AbstractConfigurati
         btnReapplyToCamera = new JButton(reapplyPropertiesToCameraAction);
         panelProperties.add(btnReapplyToCamera, "12, 32");
 
-        for (CaptureDevice dev : camera.getCaptureDevices()) {
-            deviceCb.addItem(dev);
-        }
+        // Populate devices asynchronously
+        deviceCb.addItem("Loading...");
+        deviceCb.setEnabled(false);
+        new javax.swing.SwingWorker<java.util.List<CaptureDevice>, Void>() {
+            @Override
+            protected java.util.List<CaptureDevice> doInBackground() throws Exception {
+                return camera.getCaptureDevices();
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    java.util.List<CaptureDevice> devices = get();
+                    deviceCb.removeAllItems();
+                    for (CaptureDevice dev : devices) {
+                        deviceCb.addItem(dev);
+                    }
+                    deviceCb.setEnabled(true);
+                    
+                    // Restore binding now that items are populated
+                    // We need to ensure the correct item is selected, as the binding might have missed it
+                    // or set it to null when we cleared the items.
+                    CaptureDevice currentDevice = camera.getDevice();
+                    if (currentDevice != null) {
+                         deviceCb.setSelectedItem(currentDevice);
+                    }
+                    
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    deviceCb.removeAllItems();
+                    deviceCb.addItem("Error");
+                }
+            }
+        }.execute();
     }
 
     @Override
