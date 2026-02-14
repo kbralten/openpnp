@@ -430,6 +430,21 @@ public class CameraView extends JComponent implements CameraListener {
         return !upp1.equals(upp2);
     }
 
+    private Location getCurrentUnitsPerPixel() {
+        if (camera != null && camera.getLooking() == Camera.Looking.Up && MainFrame.get() != null) {
+            Nozzle nozzle = MainFrame.get().getMachineControls().getSelectedNozzle();
+            if (nozzle != null) {
+                Location location = nozzle.getLocation();
+                Length viewingPlaneZ = location.getLengthZ();
+                if (nozzle.getPart() != null) {
+                    viewingPlaneZ = viewingPlaneZ.add(nozzle.getPart().getHeight());
+                }
+                return camera.getUnitsPerPixel(viewingPlaneZ);
+            }
+        }
+        return camera != null ? camera.getUnitsPerPixelAtZ() : new Location(LengthUnit.Millimeters, 1, 1, 0, 0);
+    }
+
     /**
      * Causes a short flash in the CameraView to get the user's attention.
      */
@@ -566,7 +581,7 @@ public class CameraView extends JComponent implements CameraListener {
         lastFrame = img;
         if (oldFrame == null
                 || (oldFrame.getWidth() != img.getWidth() || oldFrame.getHeight() != img.getHeight()
-                        || !camera.getUnitsPerPixelAtZ().equals(lastUnitsPerPixel))) {
+                        || !getCurrentUnitsPerPixel().equals(lastUnitsPerPixel))) {
             calculateScalingData();
         }
         fps = 1000.0 / fpsAverage.next(System.currentTimeMillis() - lastFrameReceivedTime);
@@ -630,7 +645,7 @@ public class CameraView extends JComponent implements CameraListener {
         scaleRatioX = lastSourceWidth / (double) scaledWidth;
         scaleRatioY = lastSourceHeight / (double) scaledHeight;
         
-        lastUnitsPerPixel = camera.getUnitsPerPixelAtZ();
+        lastUnitsPerPixel = getCurrentUnitsPerPixel();
         scaledUnitsPerPixelX = lastUnitsPerPixel.getX() * scaleRatioX;
         scaledUnitsPerPixelY = lastUnitsPerPixel.getY() * scaleRatioY;
 
@@ -1488,7 +1503,7 @@ public class CameraView extends JComponent implements CameraListener {
 
         // Create a location in the Camera's units per pixel's units
         // and with the values of the offsets.
-        Location offsets = camera.getUnitsPerPixelAtZ().
+        Location offsets = getCurrentUnitsPerPixel().
                 derive(offsetX, offsetY, 0.0, 0.0);
         // Add the offsets to the Camera's position.
         Nozzle nozzle = MainFrame.get().getMachineControls().getSelectedNozzle();
